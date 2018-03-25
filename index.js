@@ -94,6 +94,30 @@ FastImage.preload = sources => {
   FastImageViewNativeModule.preload(sources)
 }
 
+FastImage.prefetch = sources => {
+  FastImageViewNativeModule.prefetch(sources)
+}
+
+FastImage.clearMemoryCache = () => {
+  FastImageViewNativeModule.clearMemoryCache()
+}
+
+FastImage.configure = settings => {
+  
+  if(Platform.OS === 'ios'){
+
+    let stringSettings = {};
+
+    Object.keys(settings).forEach((key) => {
+      stringSettings[key] = String(settings[key])
+    });
+
+    FastImageViewNativeModule.configure(stringSettings);
+  
+  }
+
+}
+
 FastImage.defaultProps = {
   resizeMode: FastImage.resizeMode.cover,
 }
