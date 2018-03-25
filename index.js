@@ -94,8 +94,8 @@ FastImage.preload = sources => {
   FastImageViewNativeModule.preload(sources)
 }
 
-FastImage.prefetch = sources => {
-  FastImageViewNativeModule.prefetch(sources)
+FastImage.prefetch = (sources, downloadOnly) => {
+  FastImageViewNativeModule.prefetch(sources, !!downloadOnly)
 }
 
 FastImage.clearMemoryCache = () => {

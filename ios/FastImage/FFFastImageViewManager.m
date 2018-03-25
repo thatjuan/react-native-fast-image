@@ -42,9 +42,9 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
 
 
 
-RCT_EXPORT_METHOD(prefetch:(nonnull NSArray<FFFastImageSource *> *)sources)
+RCT_EXPORT_METHOD(prefetch:(nonnull NSArray<FFFastImageSource *> *)sources downloadOnly:(BOOL)downloadOnly)
 {
-    
+
     if( _prefetchQueue == nil ){
         _prefetchQueue = dispatch_queue_create("fffastImagePrefetcherQueue", 0);
     }
@@ -56,14 +56,19 @@ RCT_EXPORT_METHOD(prefetch:(nonnull NSArray<FFFastImageSource *> *)sources)
         NSMutableArray *urls = [NSMutableArray arrayWithCapacity:sources.count];
         
         @autoreleasepool {
+            
+            // skip pre-loading sources to memory. Just download them.
+            if( downloadOnly ){
+                [[[SDImageCache sharedImageCache] config] setShouldCacheImagesInMemory:NO];
+            }
+            
+            
             [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
                 [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
                     [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
                 }];
                 [urls setObject:source.uri atIndexedSubscript:idx];
             }];
-            
-            
             
             [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls
                 progress:^(NSUInteger noOfFinishedUrls, NSUInteger noOfTotalUrls) {
@@ -94,7 +99,7 @@ RCT_EXPORT_METHOD(clearMemoryCache)
 
 RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings)
 {
-    
+
     for( NSString * key in settings ){
 
         NSString * value = settings[key];
@@ -126,6 +131,14 @@ RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings)
         } else if( [key isEqualToString:@"prefetcherMaxConcurrentDownloads"] ) {
             
             [[SDWebImagePrefetcher sharedImagePrefetcher] setMaxConcurrentDownloads:[value integerValue]];
+            
+        } else if( [key isEqualToString:@"maxMemoryCost"] ) {
+            
+            [[SDImageCache sharedImageCache] setMaxMemoryCost:[value integerValue]];
+            
+        } else if( [key isEqualToString:@"maxMemoryCountLimit"] ) {
+            
+            [[SDImageCache sharedImageCache] setMaxMemoryCountLimit:[value integerValue]];
             
         }
 
