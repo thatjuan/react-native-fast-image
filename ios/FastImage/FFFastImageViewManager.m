@@ -33,23 +33,51 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
         [urls setObject:source.uri atIndexedSubscript:idx];
     }];
 
-
-    
     [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls];
 }
 
 
 
-
-
-RCT_EXPORT_METHOD(prefetch:(nonnull NSArray<FFFastImageSource *> *)sources downloadOnly:(BOOL)downloadOnly)
+RCT_EXPORT_METHOD( prefetch:(nonnull NSArray<FFFastImageSource *> *)sources downloadOnly:(BOOL)downloadOnly immediate:(BOOL)immediate )
 {
 
-    if( _prefetchQueue == nil ){
-        _prefetchQueue = dispatch_queue_create("fffastImagePrefetcherQueue", 0);
-    }
+    SDImageCache * cache = nil;
+    SDWebImageDownloader * downloader = nil;
+    SDWebImageManager * manager = nil;
+    SDWebImagePrefetcher * prefetcher = nil;
     
-    dispatch_async(_prefetchQueue, ^{
+    dispatch_queue_t dispatchQueue = nil;
+    
+    if( immediate ){
+        
+        if( _prefetchImmediateQueue == nil ){
+            _prefetchImmediateQueue = dispatch_queue_create("fffastImageImmediatePrefetcherQueue", DISPATCH_QUEUE_CONCURRENT);
+        }
+        
+        dispatchQueue = _prefetchImmediateQueue;
+        
+        cache = [SDImageCache new];
+        downloader = [SDWebImageDownloader new];
+        manager = [[SDWebImageManager alloc] initWithCache:cache downloader:downloader];
+        prefetcher = [[SDWebImagePrefetcher alloc] initWithImageManager:manager];
+        
+    } else {
+        
+        if( _prefetchQueue == nil ){
+            _prefetchQueue = dispatch_queue_create("fffastImagePrefetcherQueue", DISPATCH_QUEUE_SERIAL);
+        }
+        
+        dispatchQueue = _prefetchQueue;
+        
+        cache = [SDImageCache sharedImageCache];
+        downloader = [SDWebImageDownloader sharedDownloader];
+        manager = [SDWebImageManager sharedManager];
+        prefetcher = [SDWebImagePrefetcher sharedImagePrefetcher];
+        
+    }
+
+    
+    dispatch_async(dispatchQueue, ^{
         
         dispatch_semaphore_t barrier = dispatch_semaphore_create(0);
         
@@ -59,27 +87,30 @@ RCT_EXPORT_METHOD(prefetch:(nonnull NSArray<FFFastImageSource *> *)sources downl
             
             // skip pre-loading sources to memory. Just download them.
             if( downloadOnly ){
-                [[[SDImageCache sharedImageCache] config] setShouldCacheImagesInMemory:NO];
+                [[cache config] setShouldCacheImagesInMemory:NO];
             }
-            
             
             [sources enumerateObjectsUsingBlock:^(FFFastImageSource * _Nonnull source, NSUInteger idx, BOOL * _Nonnull stop) {
                 [source.headers enumerateKeysAndObjectsUsingBlock:^(NSString *key, NSString* header, BOOL *stop) {
-                    [[SDWebImageDownloader sharedDownloader] setValue:header forHTTPHeaderField:key];
+                    [downloader setValue:header forHTTPHeaderField:key];
                 }];
                 [urls setObject:source.uri atIndexedSubscript:idx];
             }];
             
-            [[SDWebImagePrefetcher sharedImagePrefetcher] prefetchURLs:urls
+            [prefetcher prefetchURLs:urls
                 progress:^(NSUInteger noOfFinishedUrls, NSUInteger noOfTotalUrls) {
                     NSLog( @"Progress: %tu/%tu", noOfFinishedUrls, noOfTotalUrls );
                 }
                 completed:^(NSUInteger noOfFinishedUrls, NSUInteger noOfSkippedUrls) {
-                    dispatch_semaphore_signal(barrier);
+                    if( !immediate ){
+                        dispatch_semaphore_signal(barrier);
+                    }
                 }
             ];
             
-            dispatch_semaphore_wait(barrier, DISPATCH_TIME_FOREVER);
+            if( !immediate ){
+                dispatch_semaphore_wait(barrier, DISPATCH_TIME_FOREVER);
+            }
         }
         
         
@@ -97,8 +128,7 @@ RCT_EXPORT_METHOD(clearMemoryCache)
 
 
 
-RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings)
-{
+RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings){
 
     for( NSString * key in settings ){
 
