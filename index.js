@@ -90,11 +90,38 @@ FastImage.priority = {
   high: 'high',
 }
 
+
+
+FastImage.setPrimaryDownloadQueue = primaryQueueName => {
+  return FastImageViewNativeModule.setPrimaryDownloadQueue(primaryQueueName)
+}
+
+FastImage.preDownload = (sources, usingQueueName) => {
+  return FastImageViewNativeModule.preDownload(sources, usingQueueName)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 FastImage.preload = sources => {
+  return;
   FastImageViewNativeModule.preload(sources)
 }
 
 FastImage.prefetch = (sources, downloadOnly, immediate) => {
+  return;
   FastImageViewNativeModule.prefetch(sources, !!downloadOnly, !!immediate)
 }
 
