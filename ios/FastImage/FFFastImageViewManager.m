@@ -53,7 +53,7 @@ RCT_EXPORT_METHOD(preload:(nonnull NSArray<FFFastImageSource *> *)sources)
         
         [[cache config] setMaxCacheAge:NSIntegerMax];
         [[cache config] setMaxCacheSize:0];
-        [[cache config] setShouldCacheImagesInMemory:YES];
+        [[cache config] setShouldCacheImagesInMemory:NO];
         [[cache config] setShouldDecompressImages:YES]; //TODO: Try with NO for less memory usage.
         
         SDWebImageDownloader * downloader = [SDWebImageDownloader new];
@@ -277,7 +277,26 @@ RCT_EXPORT_METHOD(preDownload:(nonnull NSArray<FFFastImageSource *> *)sources
 
 
 
+RCT_EXPORT_METHOD(preloadToMemory:(nonnull NSString *)rawUrl) {
+    
+    NSURL * url = [[NSURL alloc] initWithString:rawUrl];
+    
+    SDWebImageOptions options = 0;
+    
+    options |= SDWebImageCacheMemoryOnly;
+    options |= SDWebImageHighPriority;
+    options |= SDWebImageFromCacheOnly;
+    
+    NSNumber * maxMem = [[NSNumber alloc] initWithLong:[SDWebImageManager sharedManager].imageCache.maxMemoryCountLimit];
+    
+    [[SDWebImageManager sharedManager] loadImageWithURL:url options:options progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
+        
+        if( error != nil ){
+            return;
+        }
+    }];
 
+}
 
 
 
@@ -388,7 +407,9 @@ RCT_EXPORT_METHOD(clearMemoryCache)
 
 
 RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings){
-
+    return;
+    self.memoryItemCountLimit = @3;
+    
     for( NSString * key in settings ){
 
         NSString * value = settings[key];
@@ -428,6 +449,8 @@ RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings){
         } else if( [key isEqualToString:@"maxMemoryCountLimit"] ) {
             
             [[SDImageCache sharedImageCache] setMaxMemoryCountLimit:[value integerValue]];
+            
+            self.memoryItemCountLimit = [[NSNumber alloc] initWithLong:[value integerValue]];
             
         } else if( [key isEqualToString:@"downloadQueues"] ) {
             

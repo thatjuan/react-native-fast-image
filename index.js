@@ -100,6 +100,10 @@ FastImage.preDownload = (sources, usingQueueName) => {
   return FastImageViewNativeModule.preDownload(sources, usingQueueName)
 }
 
+FastImage.preloadToMemory = (url) => {
+  return FastImageViewNativeModule.preloadToMemory(url)
+}
+
 
 
 

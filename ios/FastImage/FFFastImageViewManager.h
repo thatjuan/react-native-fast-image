@@ -9,4 +9,5 @@
     @property (atomic, strong) NSMutableDictionary<NSString *, NSOperationQueue *> * downloadOperationQueueList;
     @property (atomic, strong) NSString * primaryQueueName;
     @property (atomic, strong) SDWebImageManager * dedicatedManager;
+    @property (atomic, strong) NSNumber * memoryItemCountLimit;
 @end
