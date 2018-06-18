@@ -286,8 +286,8 @@ RCT_EXPORT_METHOD(preloadToMemory:(nonnull NSString *)rawUrl) {
     options |= SDWebImageCacheMemoryOnly;
     options |= SDWebImageHighPriority;
     options |= SDWebImageFromCacheOnly;
-    
-    NSNumber * maxMem = [[NSNumber alloc] initWithLong:[SDWebImageManager sharedManager].imageCache.maxMemoryCountLimit];
+   
+    [[[[SDWebImageManager sharedManager] imageCache] config] setShouldCacheImagesInMemory:YES];
     
     [[SDWebImageManager sharedManager] loadImageWithURL:url options:options progress:nil completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
         
@@ -407,7 +407,7 @@ RCT_EXPORT_METHOD(clearMemoryCache)
 
 
 RCT_EXPORT_METHOD(configure:(nonnull NSDictionary *)settings){
-    return;
+
     self.memoryItemCountLimit = @3;
     
     for( NSString * key in settings ){
