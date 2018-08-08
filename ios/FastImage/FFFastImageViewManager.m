@@ -98,7 +98,7 @@ RCT_EXPORT_METHOD(setPrimaryDownloadQueue:(NSString *)queueName
         [self.downloadOperationQueueList[queueName] setQualityOfService:NSQualityOfServiceBackground];
     }
     
-    [self _pauseAllDownloadOperationQueues];
+    [self _pauseAllDownloadOperationQueuesExcept: queueName];
     
     self.primaryQueueName = queueName;
     
@@ -109,11 +109,15 @@ RCT_EXPORT_METHOD(setPrimaryDownloadQueue:(NSString *)queueName
 }
 
 
--(void) _pauseAllDownloadOperationQueues {
+-(void) _pauseAllDownloadOperationQueuesExcept: (NSString *)exceptQueueName {
     
     [self _initializeDownloadOperationQueueList];
     
     for( NSString * queueName in self.downloadOperationQueueList ){
+        
+        if( exceptQueueName && [exceptQueueName isEqualToString:queueName] ){
+            continue;
+        }
         
         [self.downloadOperationQueueList[queueName] setSuspended:YES];
         
@@ -136,6 +140,7 @@ static NSString *kQueueOperationsChanged = @"kQueueOperationsChanged";
             [queue setName:queueName];
             [queue setSuspended:YES];
             [queue setQualityOfService:NSQualityOfServiceBackground];
+            [queue setMaxConcurrentOperationCount:2];
             
             if( self.primaryQueueName == nil ){
                 self.primaryQueueName = queueName;
@@ -218,9 +223,9 @@ RCT_EXPORT_METHOD(preDownload:(nonnull NSArray<FFFastImageSource *> *)sources
     
     NSOperationQueue * queue = self.downloadOperationQueueList[queueName];
     
-    if( [queueName isEqualToString:self.primaryQueueName] ){
-        [self _pauseAllDownloadOperationQueues];
-        [self.downloadOperationQueueList[queueName] setSuspended:NO];
+    if( [queueName isEqualToString: self.primaryQueueName] ){
+        [self _pauseAllDownloadOperationQueuesExcept: queueName];
+        [queue setSuspended:NO];
     }
     
     for( FFFastImageSource * source in sources ){
@@ -228,9 +233,6 @@ RCT_EXPORT_METHOD(preDownload:(nonnull NSArray<FFFastImageSource *> *)sources
         for( NSString * header in source.headers ){
             [self.dedicatedManager.imageDownloader setValue:source.headers[header] forHTTPHeaderField:header];
         }
-        
-        BOOL queueIsRunning = !queue.suspended;
-        NSUInteger pendingTasks = queue.operations.count;
         
         NSURL * url = source.uri;
         
@@ -240,12 +242,20 @@ RCT_EXPORT_METHOD(preDownload:(nonnull NSArray<FFFastImageSource *> *)sources
                 return;
             }
             
+            BOOL queueIsRunning = !queue.suspended;
+            NSUInteger pendingTasks = queue.operations.count;
+            
             [queue addOperationWithBlock:^{
 
                 dispatch_semaphore_t barrier = dispatch_semaphore_create(0);
                 
                 @autoreleasepool {
+                    
+                    NSLog(@"Prefetching...");
+                    
                     [self.dedicatedManager loadImageWithURL:url options:[self _dedicatedDownloadOptions] progress:nil completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+                        
+                        NSLog(@"Prefetched.");
                         
                         if (!finished) return;
                         
